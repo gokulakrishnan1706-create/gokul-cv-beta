@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GokulCV — AI CV Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f5f3ef;color:#1a1a1a;min-height:100vh}
+.app{display:grid;grid-template-columns:380px 1fr;min-height:100vh}
+.left{background:#fff;border-right:1px solid #e0dbd2;padding:28px 24px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;height:100vh;position:sticky;top:0}
+.right{padding:32px;overflow-y:auto;display:flex;flex-direction:column;align-items:center;gap:20px}
+.logo{font-size:1.4rem;font-weight:800;letter-spacing:-0.03em;color:#1a1a1a}
+.logo span{color:#c0392b}
+.label{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#888;margin-bottom:6px}
+.toggle-row{display:flex;gap:8px}
+.toggle{padding:6px 14px;border-radius:20px;border:1.5px solid #ddd;background:#fafafa;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.15s;color:#666}
+.toggle.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+textarea{width:100%;min-height:240px;padding:14px;border:1.5px solid #e0dbd2;border-radius:8px;font-family:inherit;font-size:0.87rem;line-height:1.6;color:#1a1a1a;resize:vertical;outline:none;background:#fafafa;transition:border-color 0.2s}
+textarea:focus{border-color:#c0392b;background:#fff}
+textarea::placeholder{color:#aaa;font-style:italic}
+.chars{font-size:0.68rem;color:#aaa;text-align:right;margin-top:4px}
+.gen-btn{width:100%;padding:14px;background:#c0392b;color:#fff;border:none;border-radius:8px;font-size:0.95rem;font-weight:700;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.gen-btn:hover:not(:disabled){background:#a93226;transform:translateY(-1px)}
+.gen-btn:disabled{background:#bbb;cursor:not-allowed;transform:none}
+.hint{font-size:0.78rem;color:#999;line-height:1.55;padding:12px;background:#f9f7f4;border-radius:6px;border:1px dashed #ddd}
+.hint b{color:#555}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:12px;color:#bbb;text-align:center}
+.empty-icon{font-size:3rem;opacity:0.2}
+.empty-title{font-size:1.4rem;font-weight:300;color:#ccc}
+.empty-sub{font-size:0.85rem;max-width:260px;line-height:1.6}
+.cv-wrap{width:100%;max-width:760px;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,0.09);border-radius:4px;overflow:hidden}
+.action-bar{display:flex;gap:10px;width:100%;max-width:760px;justify-content:flex-end}
+.abtn{font-size:0.75rem;font-weight:600;padding:8px 18px;border-radius:6px;border:1.5px solid #ddd;background:#fff;color:#333;cursor:pointer;transition:all 0.15s;letter-spacing:0.02em}
+.abtn:hover{background:#f5f3ef;border-color:#999}
+.abtn.primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.abtn.primary:hover{background:#333}
+.abtn:disabled{opacity:0.6;cursor:not-allowed}
+.err{background:#fff0ee;border:1px solid #f4b4aa;border-radius:8px;padding:12px 16px;font-size:0.85rem;color:#a82a1a;width:100%;max-width:760px}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* ── CV STYLES ── */
+#cv-render{padding:40px 50px;font-family:Arial,"Helvetica Neue",Helvetica,sans-serif;line-height:1.5;color:#333;background:#fff}
+#cv-render .ch{border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px}
+#cv-render h1{margin:0;font-size:1.9rem;font-weight:700;color:#000}
+#cv-render .cc{margin-top:7px;font-size:0.87rem;color:#444}
+#cv-render .cc span{margin-right:13px}
+#cv-render .cc a{color:#444;text-decoration:none}
+#cv-render .cs{margin-bottom:16px}
+#cv-render .cst{font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:9px;color:#000}
+#cv-render .sum p{margin:0;font-size:0.93rem}
+#cv-render .av{font-weight:700;font-size:0.87rem;margin-top:7px}
+#cv-render .sl{display:flex;flex-wrap:wrap;gap:6px;list-style:none;padding:0;margin:0}
+#cv-render .sl li{background:#f4f4f4;padding:3px 9px;border-radius:3px;font-size:0.84rem}
+#cv-render .job{margin-bottom:13px}
+#cv-render .jh{display:flex;justify-content:space-between;align-items:baseline}
+#cv-render .jh h3{font-size:0.98rem;font-weight:700;margin:0;color:#000}
+#cv-render .jd{font-size:0.8rem;font-style:italic;color:#555;font-weight:600}
+#cv-render .jc{font-size:0.88rem;font-weight:600;color:#444;margin:2px 0 5px}
+#cv-render .job ul{margin:0;padding-left:17px}
+#cv-render .job li{font-size:0.86rem;margin-bottom:3px}
+#cv-render .ee{margin-bottom:7px}
+#cv-render .ed{font-size:0.97rem;font-weight:700;margin:0}
+#cv-render .es{font-size:0.88rem;color:#444;margin:0 0 3px}
+#cv-render .ct{font-size:0.93rem;font-weight:700;margin:8px 0 4px}
+#cv-render .cl{padding-left:17px;margin:0}
+#cv-render .cl li{font-size:0.86rem;margin-bottom:2px}
+#cv-render .wa{font-size:0.8rem;color:#555;margin-top:7px;font-style:italic}
+/* skeleton */
+.sk{background:linear-gradient(90deg,#f0f0f0 25%,#e4e4e4 50%,#f0f0f0 75%);background-size:200% 100%;animation:shim 1.4s infinite;border-radius:4px;margin-bottom:10px}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- LEFT PANEL -->
+  <aside class="left">
+    <div>
+      <div class="logo">Gokul<span>CV</span></div>
+      <div style="font-size:0.7rem;color:#aaa;margin-top:2px;letter-spacing:0.05em">AI ADAPTIVE GENERATOR</div>
+    </div>
+
+    <div>
+      <div class="label">Role Type</div>
+      <div class="toggle-row">
+        <div class="toggle active" data-r="part" onclick="setRole(this)">Part-Time</div>
+        <div class="toggle" data-r="full" onclick="setRole(this)">Full-Time / Graduate</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label">Paste Job Description</div>
+      <textarea id="jd" placeholder="Paste the full job description here…&#10;&#10;Include job title, requirements, responsibilities and any keywords you spot." oninput="updateChars()"></textarea>
+      <div class="chars" id="chars">0 characters</div>
+    </div>
+
+    <div>
+      <div class="label">Anthropic API Key</div>
+      <input type="password" id="apikey" placeholder="sk-ant-..." style="width:100%;padding:10px 14px;border:1.5px solid #e0dbd2;border-radius:8px;font-family:inherit;font-size:0.87rem;color:#1a1a1a;background:#fafafa;outline:none;transition:border-color 0.2s" onfocus="this.style.borderColor='#c0392b'" onblur="this.style.borderColor='#e0dbd2'">
+      <div style="font-size:0.68rem;color:#aaa;margin-top:4px">Your key stays in your browser only — never stored or sent anywhere else.</div>
+    </div>
+
+    <button class="gen-btn" id="gbtn" onclick="generate()">
+      <div id="spin" class="spin" style="display:none"></div>
+      <span id="gbtn-txt">✦ Generate Tailored CV</span>
+    </button>
+
+    <div class="hint">
+      <b>How it works:</b> Claude reads your full master CV + the JD, rewrites bullet points to mirror the role's language, picks the best jobs, and orders skills by relevance. Natural tailoring — not keyword stuffing.
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL -->
+  <main class="right" id="right">
+    <div class="empty" id="empty">
+      <div class="empty-icon">◎</div>
+      <div class="empty-title">Your CV will appear here</div>
+      <div class="empty-sub">Paste a job description on the left and click Generate.</div>
+    </div>
+
+    <div class="err" id="err" style="display:none"></div>
+
+    <div class="action-bar" id="abar" style="display:none">
+      <button class="abtn" onclick="copyTxt()">Copy Text</button>
+      <button class="abtn primary" id="dlbtn" onclick="dlPDF()">⬇ Download PDF</button>
+    </div>
+
+    <div class="cv-wrap" id="cvwrap" style="display:none">
+      <div id="cv-render"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const MASTER = `
+CONTACT: Gokulakrishnan Balaiya | Preston, UK | +44 7554699808 | gokulakrishnan1706@gmail.com | linkedin.com/in/gokulakrishnan-balaiya/
+
+AVAILABILITY: Flexible evenings and weekends. Can accommodate weekday shifts around university. Approx 16-25 hrs/week. Immediate start. No full UK driving licence.
+
+SUMMARIES:
+- Retail/Customer Service: Reliable and friendly individual with 1+ year experience in customer-facing retail. Skilled in cash handling, customer service, and store cleanliness. Flexible for evening/weekend shifts.
+- Hospitality/Food: Team-oriented worker with experience in fast-paced environments. Holds Food Safety L2 & HACCP. Skilled in food prep, cleaning/hygiene, team support.
+- Warehouse/Manual: Safety-conscious operative with warehouse experience including stock control, manual handling (pallet jack/pump truck), 5S standards. Proven night shift reliability. IOSH Manual Handling cert.
+- Admin/Support: Organised graduate with MS Office and SAP experience for data entry and record keeping. Strong communication, proactive, quick learner.
+- General/Events: Proactive individual with experience supporting events/projects, communicating effectively, ensuring safety. Reliable, flexible, independent or team worker.
+- Graduate/Engineering: First-class BEng Mechatronics graduate with industry experience at BAE Systems and P&G. Skilled in PLC/SCADA, SAP, MS Office, Power BI, and project documentation. Strong problem-solver with hands-on engineering project experience.
+
+SKILLS (Hard): POS Systems (Square/Zettle/Till), Cash Handling & Reconciliation, MS Office (Word/Excel/Outlook), Google Workspace, Data Entry, SAP ERP (QA/Stock modules), Stock Management (FIFO/LIFO), RF Scanning, Manual Handling Equipment, Basic Food Preparation, Kitchen Hygiene & Cleaning, PLC/SCADA Programming, Power BI, NDT Level II (only if relevant)
+SKILLS (Soft): Excellent Customer Service, Strong Communication, Teamwork, Reliability & Punctuality (proven night shift), Flexibility (varied shifts), Attention to Detail, Organisation & Time Management, Problem Solving, Working Under Pressure, Fast Learner, H&S Conscious (HSE L2), Lone Working Confidence
+Languages: Tamil (Native), Malayalam (Conversational), Hindi (Beginner)
+
+EXPERIENCE:
+1. Tesco Colleague (Night Shift) | Tesco Extra, Leyland UK | Aug 2025–Nov 2025
+- Exceptional reliability and punctuality on night shift flexible rota
+- Excellent customer service at checkouts and shop floor
+- Accurate cash/card transactions and till reconciliation
+- Maintained store cleaning and hygiene standards
+- HACCP compliance during stock rotation and date-code audits
+- Safe pump-truck operation
+- Effective independent and team working to meet deadlines
+
+2. Warehouse Operative | P&G, Skelmersdale UK | Jul 2025–Sep 2025
+- General warehouse duties including pallet loading/unloading (heavy lifting)
+- Accurate SAP inventory record updates
+- High 5S housekeeping standards in dispatch bay
+- Manual handling and fire-evacuation marshal training
+- Site safety via daily Gemba walks and hazard reporting
+
+3. Collaborative Project Engineer (UCLan EASE 2025 Programme) | BAE Systems / UCLan, Preston UK | Jan 2025–Jun 2025
+- Maintained accurate project records and ITPs in SAP
+- Excellent organisation coordinating tasks and timelines
+- Strong communication liaising with teams and mentors
+- Strict H&S adherence during on-site work and facility visits
+- MS Office and Power BI for data reporting
+- Worked on live collaborative engineering project at BAE Systems facilities
+
+4. Quality Assurance / Automation Intern | Larsen & Toubro, Kanchipuram India | Mar 2023–Jun 2024
+- Goods-in quality checks and SAP ERP defect logging
+- Technical document verification and record keeping
+- Risk assessment and method statement updates
+- 5S housekeeping standards
+
+5. Mechatronics Team Leader | NTTF, Trichy India | Jul 2020–Jun 2021
+- Led team project demonstrating leadership and organisation
+- Coordinated workstreams and ensured milestone delivery
+
+EDUCATION:
+- BEng (Hons) Mechatronics & Intelligent Machines, 1st Class | University of Central Lancashire (UCLan), Preston UK | 2024–2025
+- BTEC Level 5 HND Electrical & Electronic Engineering | Kings Cornerstone International College, Chennai India | 2022–2024
+- NOCN Level 5 Diploma Mechatronics & Smart Factory | NTTF, Trichy India | 2019–2021
+
+CERTIFICATIONS: Food Safety L2 & HACCP, HSE Level 2 H&S in the Workplace, IOSH Manual Handling, ASNT NDT Level II (only if relevant), Data Analysis Career Essentials (Microsoft/LinkedIn), Data Analytics Part 2 (NASBA)
+
+WORK AUTH: UK Graduate Route Visa valid July 2027. Full right to work UK. No sponsorship needed.
+
+RULE: Only include healthcare/care worker jobs for care/support/healthcare JDs. For all other roles use only the jobs listed above.
+`;
+
+let roleType = 'part';
+
+function setRole(el) {
+  document.querySelectorAll('.toggle').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  roleType = el.dataset.r;
+}
+
+function updateChars() {
+  const v = document.getElementById('jd').value;
+  document.getElementById('chars').textContent = v.length.toLocaleString() + ' characters';
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function generate() {
+  const jd = document.getElementById('jd').value.trim();
+  const apiKey = document.getElementById('apikey').value.trim();
+  if (!apiKey || !apiKey.startsWith('sk-ant-')) { showErr('Please enter a valid Anthropic API key (starts with sk-ant-).'); return; }
+  if (jd.length < 40) { showErr('Please paste a full job description first.'); return; }
+
+  setBusy(true);
+  hideErr();
+  showSkeleton();
+
+  const system = `You are an expert CV writer for Gokulakrishnan Balaiya. Use the master CV data below to generate a perfectly tailored CV for a job description.
+
+MASTER CV:
+${MASTER}
+
+RULES:
+1. Analyse the JD — identify keywords, tone, requirements.
+2. Pick and rewrite the best summary module to mirror JD keywords naturally. Do NOT copy verbatim.
+3. Pick top 6-8 most relevant skills, ordered by JD priority.
+4. Pick 2-3 most relevant jobs. ACTIVELY REWRITE bullet points to mirror JD language — do not just copy them.
+5. ${roleType === 'full' ? 'For this full-time/graduate role: prominently feature the BEng degree and BAE Systems project. Emphasise technical and engineering skills.' : 'For this part-time role: keep concise, focus on hands-on relevant experience.'}
+6. No keyword stuffing — aim for natural "perfect coincidence" feel.
+7. Output ONLY valid JSON — no markdown, no backticks, no preamble:
+{
+  "summary": "string",
+  "availability": "string",
+  "skills": ["skill1","skill2","skill3","skill4","skill5","skill6"],
+  "jobs": [{"title":"","company":"Company | Location","dates":"","bullets":["",""]}],
+  "education": [{"degree":"","school":"School | Location | Dates"}],
+  "certs": ["cert1","cert2"]
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system,
+        messages: [{role:'user', content:'Job Description:\n' + jd + '\n\nOutput only the JSON object.'}]
+      })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'API error ' + res.status); }
+    const data = await res.json();
+    const raw = data.content.map(b => b.text||'').join('').replace(/```json|```/g,'').trim();
+    const cv = JSON.parse(raw);
+    renderCV(cv);
+    setBusy(false);
+  } catch(e) {
+    showErr('Error: ' + e.message);
+    hideSkeleton();
+    setBusy(false);
+  }
+}
+
+function renderCV(cv) {
+  const skillsHTML = (cv.skills||[]).map(s=>`<li>${esc(s)}</li>`).join('');
+  const jobsHTML = (cv.jobs||[]).map(j=>`
+    <div class="job">
+      <div class="jh"><h3>${esc(j.title)}</h3><span class="jd">${esc(j.dates)}</span></div>
+      <p class="jc">${esc(j.company)}</p>
+      <ul>${(j.bullets||[]).map(b=>`<li>${esc(b)}</li>`).join('')}</ul>
+    </div>`).join('');
+  const eduHTML = (cv.education||[]).map(e=>`
+    <div class="ee"><p class="ed">${esc(e.degree)}</p><p class="es">${esc(e.school)}</p></div>`).join('');
+  const certsHTML = (cv.certs||[]).map(c=>`<li>${esc(c)}</li>`).join('');
+
+  document.getElementById('cv-render').innerHTML = `
+    <div class="ch">
+      <h1>Gokulakrishnan Balaiya</h1>
+      <div class="cc">
+        <span>Preston, UK</span>
+        <span>+44 7554699808</span>
+        <span><a href="mailto:gokulakrishnan1706@gmail.com">gokulakrishnan1706@gmail.com</a></span>
+        <span><a href="https://linkedin.com/in/gokulakrishnan-balaiya/" target="_blank">LinkedIn Profile</a></span>
+      </div>
+    </div>
+    <div class="cs sum"><div class="cst">Personal Profile</div><p>${esc(cv.summary)}</p><p class="av">${esc(cv.availability)}</p></div>
+    <div class="cs"><div class="cst">Key Skills</div><ul class="sl">${skillsHTML}</ul></div>
+    <div class="cs"><div class="cst">Work Experience</div>${jobsHTML}</div>
+    <div class="cs"><div class="cst">Education &amp; Certifications</div>${eduHTML}<p class="ct">Key Certifications</p><ul class="cl">${certsHTML}</ul><p class="wa">Work Authorisation: UK Graduate Route Visa valid until July 2027. Full right to work in the UK — no sponsorship required.</p></div>`;
+
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('cvwrap').style.display = 'block';
+  document.getElementById('abar').style.display = 'flex';
+}
+
+async function dlPDF() {
+  const btn = document.getElementById('dlbtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Building PDF…';
+  try {
+    const { jsPDF } = window.jspdf;
+    const el = document.getElementById('cv-render');
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const img = canvas.toDataURL('image/jpeg', 0.98);
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const W = 210, H = 297;
+    const imgH = (canvas.height / canvas.width) * W;
+    if (imgH <= H) {
+      pdf.addImage(img, 'JPEG', 0, 0, W, imgH);
+    } else {
+      let y = 0;
+      while (y < imgH) {
+        if (y > 0) pdf.addPage();
+        pdf.addImage(img, 'JPEG', 0, -y, W, imgH);
+        y += H;
+      }
+    }
+    pdf.save('Gokulakrishnan_Balaiya_CV.pdf');
+    btn.textContent = '✓ Downloaded!';
+    setTimeout(() => { btn.textContent = '⬇ Download PDF'; btn.disabled = false; }, 2500);
+  } catch(e) {
+    btn.textContent = 'Failed — try again';
+    btn.disabled = false;
+    console.error(e);
+  }
+}
+
+function copyTxt() {
+  const el = document.getElementById('cv-render');
+  const txt = el ? el.innerText : '';
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = document.querySelector('.abtn:not(.primary)');
+    b.textContent = 'Copied!';
+    setTimeout(() => b.textContent = 'Copy Text', 2000);
+  });
+}
+
+function setBusy(on) {
+  document.getElementById('gbtn').disabled = on;
+  document.getElementById('spin').style.display = on ? 'block' : 'none';
+  document.getElementById('gbtn-txt').textContent = on ? 'Generating…' : '✦ Regenerate CV';
+  if (!on) document.getElementById('gbtn-txt').textContent = document.getElementById('cvwrap').style.display === 'block' ? '✦ Regenerate CV' : '✦ Generate Tailored CV';
+}
+
+function showSkeleton() {
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('cvwrap').style.display = 'block';
+  const rows = [['70%',28],['85%',13],['40%',13],['',0],['30%',10],['100%',13],['95%',13],['88%',13],['',0],['30%',10],['60%',16],['42%',12],['100%',12],['96%',12],['90%',12]];
+  document.getElementById('cv-render').innerHTML = '<div style="padding:40px 50px">' +
+    rows.map(([w,h]) => w ? `<div class="sk" style="height:${h}px;width:${w};margin-bottom:${h>15?8:6}px"></div>` : '<div style="height:16px"></div>').join('') +
+    '</div>';
+}
+function hideSkeleton() {
+  document.getElementById('cv-render').innerHTML = '';
+  document.getElementById('cvwrap').style.display = 'none';
+  document.getElementById('empty').style.display = 'flex';
+  document.getElementById('abar').style.display = 'none';
+}
+function showErr(msg) { const e = document.getElementById('err'); e.textContent = msg; e.style.display = 'block'; }
+function hideErr() { document.getElementById('err').style.display = 'none'; }
+</script>
+</body>
+</html>
